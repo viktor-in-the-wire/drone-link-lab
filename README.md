@@ -1,8 +1,14 @@
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="Drone Link Lab logo" width="160">
+</p>
+
 # Drone Link Lab
 
 A MAVLink 2 style telemetry link between a simulated drone and a ground station, built from raw bytes in Python. Every frame is checked for damage with a CRC and authenticated with a truncated HMAC-SHA256 signature and a timestamp.
 
 The project is a study of how a real drone protocol is put together: how frames are laid out, validated, signed, and what each layer of protection does and does not stop. Everything runs locally between two programs on `127.0.0.1`.
+
+**Live demo:** <https://viktor-in-the-wire.github.io/drone-link-lab/>, a wireframe 3D drone, signed frames on a simulated link, and attacks the receiver rejects (runs in the browser; source in [`docs/`](docs/SITE.md)).
 
 ![DLP frame layout](docs/images/frame-layout.svg)
 
@@ -74,7 +80,7 @@ The ground station writes accepted telemetry to `connection.log`.
 - [ ] Timestamp replay protection and lost-frame counting
 - [ ] `DRONE_COMMAND` and `DRONE_ACK`
 - [ ] Attack scripts (forge, alter, replay) and the defences against them
-- [ ] Live visualisation of the link
+- [x] Live visualisation of the link (browser demo in `docs/`)
 
 ## Repository layout
 
@@ -84,6 +90,8 @@ drone-link-lab/
 ├── ground_station.py     ground station: receives, verifies and logs frames
 ├── docs/
 │   ├── PROTOCOL.md       protocol specification
+│   ├── index.html        live demo site (GitHub Pages, served from /docs)
+│   ├── js/, assets/, styles.css, SITE.md
 │   └── images/           diagrams used in the documentation
 ├── .env.example          template for the secret key
 ├── requirements.txt

@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drone Link Lab · a signed MAVLink 2 style telemetry link, live in your browser</title>
+  <meta name="description" content="Interactive demo of the Drone Link Protocol by Viktor Grozdev: a simulated drone and ground station exchanging real CRC-checked, HMAC-SHA256 signed frames, with simulated attacks and in-browser conformance tests.">
+  <meta name="author" content="Viktor Grozdev">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/svg+xml" href="./assets/logo.svg">
+  <script>
+    // Enable entrance animations only when JS runs; fail safe after 6 s.
+    document.documentElement.classList.add('js');
+    setTimeout(function () { document.body && document.body.classList.add('loaded'); }, 6000);
+  </script>
+  <link rel="preload" href="./assets/fonts/ibm-plex-sans-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./assets/fonts/ibm-plex-mono-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./styles.css">
+  <!-- Three.js, pinned. This is the only external request the page makes. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="./js/main.js"></script>
+</head>
+<body>
+  <!-- Intro: pixels assemble the mark while the protocol self-test runs. -->
+  <div id="loader" class="loader" aria-hidden="true">
+    <canvas></canvas>
+    <p class="loader-msg"></p>
+  </div>
+
+  <a class="skip-link" href="#demo">Skip to the live demo</a>
+  <noscript><p class="noscript">This demo needs JavaScript: the protocol, the simulation and the 3D view all run in the browser.</p></noscript>
+
+  <!-- EDIT: replace "viktor-in-the-wire/drone-link-lab" with your repository in the links below. -->
+  <header class="topbar" id="topbar">
+    <a class="brand" href="#top" aria-label="Drone Link Lab, back to top">
+      <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="9.5" cy="9.5" r="5.5"/><circle cx="30.5" cy="9.5" r="5.5"/><circle cx="30.5" cy="30.5" r="5.5"/><circle cx="9.5" cy="30.5" r="5.5"/><path d="M13.4 13.4 L16 16 M26.6 13.4 L24 16 M26.6 26.6 L24 24 M13.4 26.6 L16 24"/><rect class="logo-frame" x="16" y="16" width="8" height="8"/><rect class="logo-core" x="18.4" y="18.4" width="3.2" height="3.2"/></svg>
+      <span class="wordmark">Drone Link<span class="wm-lab">LAB</span></span>
+    </a>
+    <nav class="topnav" aria-label="Sections">
+      <a href="#demo" data-spy="demo"><span class="mono">01</span>Live link</a>
+      <a href="#redteam" data-spy="redteam"><span class="mono">02</span>Red team</a>
+      <a href="#build" data-spy="build"><span class="mono">03</span>Frame</a>
+      <a href="#conformance" data-spy="conformance"><span class="mono">04</span>Verified</a>
+    </nav>
+    <div class="top-right">
+      <span class="top-status mono" id="top-status" aria-hidden="true"><i class="pulse"></i><span>LINK</span></span>
+      <a class="btn btn-small" href="https://github.com/viktor-in-the-wire/drone-link-lab">GitHub <span aria-hidden="true">↗</span></a>
+    </div>
+    <span class="scroll-progress" aria-hidden="true"><i id="scroll-progress"></i></span>
+  </header>
+
+  <main>
+    <!-- ============================================================ HERO -->
+    <section class="hero" id="top" aria-labelledby="title">
+      <div class="hero-copy">
+        <p class="kicker mono hero-in" style="--d:0">DLP 1.0 <span class="sep">/</span> MAVLink 2 framing <span class="sep">/</span> HMAC-SHA256</p>
+        <h1 id="title" class="hero-in" style="--d:1">Drone Link <em>Lab</em></h1>
+        <p class="lede hero-in" style="--d:2">A telemetry link between a simulated drone and a ground station. Every frame is checked by a CRC and signed with HMAC-SHA256, built from real bytes, live in your browser.</p>
+        <div class="actions hero-in" style="--d:3">
+          <a class="btn btn-primary" href="#demo">Try the demo <span aria-hidden="true">↓</span></a>
+          <a class="btn" href="https://github.com/viktor-in-the-wire/drone-link-lab">View on GitHub</a>
+          <a class="btn" href="https://github.com/viktor-in-the-wire/drone-link-lab/blob/main/docs/PROTOCOL.md">Read the spec</a>
+        </div>
+        <dl class="facts hero-in" style="--d:4">
+          <div><dt>frame</dt><dd>25 + LEN bytes</dd></div>
+          <div><dt>checksum</dt><dd>CRC-16/MCRF4XX</dd></div>
+          <div><dt>signature</dt><dd>HMAC-SHA256, 48 bit</dd></div>
+          <div><dt>receiver</dt><dd>7 checks, R1 to R7</dd></div>
+        </dl>
+        <p class="byline hero-in" style="--d:5"><span class="mono">designed &amp; built by</span> Viktor Grozdev</p>
+      </div>
+      <figure class="hero-figure hero-in" style="--d:2">
+        <div class="stage hero-stage" id="hero-slot">
+          <div class="drone-host" id="drone-host"></div>
+          <span class="stage-tag tl mono" aria-hidden="true">VIEW · ISO · LIVE</span>
+          <span class="stage-tag br mono" aria-hidden="true">SHEET 01 · SCALE 1:20</span>
+        </div>
+        <figcaption>
+          <span><span class="fig-no">Fig. 1</span> Quadcopter, edge view. Drag to rotate, scroll or pinch to zoom.</span>
+          <button class="btn btn-small" id="explode-btn" type="button" aria-label="Play the exploded view of the drone">Exploded view</button>
+        </figcaption>
+      </figure>
+    </section>
+
+    <!-- ============================================================ LIVE DEMO -->
+    <section class="section" id="demo" aria-labelledby="demo-title">
+      <header class="section-head" data-reveal>
+        <div class="sh-rule mono" aria-hidden="true"><span>§01</span><i></i><span>LIVE LINK · DRONE ⇄ GROUND</span></div>
+        <div class="sh-body">
+          <span class="sh-no mono" aria-hidden="true">01</span>
+          <div>
+            <h2 id="demo-title">Fly it. <em>Every frame is checked.</em></h2>
+            <p>The drone sends a signed <code>HEARTBEAT</code> at 1 Hz and <code>DRONE_TELEMETRY</code> at 5 Hz. The ground station runs every frame through the seven receiver checks. Fly with the sticks or the keyboard, then open any frame.</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="toolbar" role="group" aria-label="Simulation controls" data-reveal>
+        <button class="btn btn-small" id="btn-pause" type="button" aria-pressed="false">Pause</button>
+        <button class="btn btn-small" id="btn-reset" type="button">Reset</button>
+        <label class="slider">
+          <span class="mono">link loss</span>
+          <input type="range" id="link-quality" min="0" max="50" step="1" value="0" aria-describedby="lq-help">
+          <output id="lq-out" class="mono" for="link-quality">0%</output>
+        </label>
+        <span id="lq-help" class="sr-only">Share of radio frames dropped or corrupted in transit.</span>
+        <button class="btn btn-small" id="btn-lowbatt" type="button">Skip to low battery</button>
+        <span class="toolbar-stats mono" id="stats" aria-live="off"></span>
+      </div>
+
+      <figure class="demo-figure">
+        <div class="demo-grid">
+          <!-- A. Controller -->
+          <div class="panel controller" aria-labelledby="ctl-title" data-reveal>
+            <h3 class="panel-title" id="ctl-title"><span class="tag mono">A</span> Transmitter</h3>
+            <div class="tx">
+              <span class="tx-antenna" aria-hidden="true"></span>
+              <div class="sticks">
+                <div class="stick" id="stick-left" tabindex="0" role="group" aria-label="Left stick: climb and yaw. Keys W, S, A, D.">
+                  <span class="stick-cross" aria-hidden="true"></span><span class="knob" aria-hidden="true"></span>
+                </div>
+                <div class="stick" id="stick-right" tabindex="0" role="group" aria-label="Right stick: pitch and roll. Arrow keys.">
+                  <span class="stick-cross" aria-hidden="true"></span><span class="knob" aria-hidden="true"></span>
+                </div>
+              </div>
+              <div class="stick-labels mono" aria-hidden="true"><span>THR · YAW</span><span>PITCH · ROLL</span></div>
+              <div class="tx-row">
+                <button class="btn btn-small" id="btn-arm" type="button" aria-label="Arm motors (Space)">ARM</button>
+                <button class="btn btn-small" id="btn-disarm" type="button" aria-label="Disarm motors (Space)">DISARM</button>
+              </div>
+              <fieldset class="modes">
+                <legend class="mono">SET_MODE</legend>
+                <button class="btn btn-small" type="button" data-mode="1" aria-pressed="false">MANUAL</button>
+                <button class="btn btn-small" type="button" data-mode="2" aria-pressed="true">STABILIZE</button>
+                <button class="btn btn-small" type="button" data-mode="3" aria-pressed="false">AUTO</button>
+                <button class="btn btn-small" type="button" data-mode="4" aria-pressed="false">LOITER</button>
+              </fieldset>
+              <div class="tx-row">
+                <button class="btn btn-small" id="btn-rth" type="button" aria-label="Return home (R)">RETURN HOME</button>
+                <button class="btn btn-small" id="btn-land" type="button" aria-label="Land (L)">LAND</button>
+              </div>
+            </div>
+            <dl class="keys mono" aria-label="Keyboard shortcuts">
+              <div><dt><kbd>Space</kbd></dt><dd>arm</dd></div>
+              <div><dt><kbd>W</kbd><kbd>S</kbd></dt><dd>climb</dd></div>
+              <div><dt><kbd>A</kbd><kbd>D</kbd></dt><dd>yaw</dd></div>
+              <div><dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>pitch</dd></div>
+              <div><dt><kbd>←</kbd><kbd>→</kbd></dt><dd>roll</dd></div>
+              <div><dt><kbd>R</kbd><kbd>L</kbd></dt><dd>RTH / land</dd></div>
+            </dl>
+            <p class="note">Sticks and ARM use the RC channel. Mode, return home and land travel over the link as signed <code>DRONE_COMMAND</code> frames and are answered with <code>DRONE_ACK</code>.</p>
+          </div>
+
+          <!-- B. Drone + link -->
+          <div class="panel centre" aria-labelledby="link-title" data-reveal="80">
+            <h3 class="panel-title" id="link-title"><span class="tag mono">B</span> Drone and link</h3>
+            <div class="stage demo-stage" id="demo-slot">
+              <span class="stage-tag tl mono" aria-hidden="true">LIVE · TRUE STATE</span>
+            </div>
+            <div class="link-wrap">
+              <canvas id="link-canvas" class="link-canvas" tabindex="0" aria-label="Frames travelling over the link. Click a frame to inspect it."></canvas>
+              <div class="link-legend mono" aria-hidden="true">
+                <span><i class="lg lg-ok"></i>accepted</span>
+                <span><i class="lg lg-bad"></i>rejected</span>
+                <span><i class="lg lg-lost"></i>lost in transit</span>
+                <span><i class="lg lg-atk"></i>attacker</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- E. Telemetry -->
+          <div class="panel telemetry" aria-labelledby="tlm-title" data-reveal="160">
+            <h3 class="panel-title" id="tlm-title"><span class="tag mono">E</span> Ground-station view</h3>
+            <p class="panel-sub">Decoded from accepted frames only.</p>
+            <div class="readouts">
+              <div class="readout"><span class="ro-label mono">ALT</span><span class="ro-value" id="ro-alt">-</span><span class="gauge"><i id="g-alt"></i></span></div>
+              <div class="readout"><span class="ro-label mono">SPEED</span><span class="ro-value" id="ro-speed">-</span><span class="gauge"><i id="g-speed"></i></span></div>
+              <div class="readout"><span class="ro-label mono">BATT</span><span class="ro-value" id="ro-batt">-</span><span class="gauge gauge-batt"><i id="g-batt"></i></span></div>
+              <div class="readout"><span class="ro-label mono">SATS</span><span class="ro-value" id="ro-sats">-</span><span class="gauge"><i id="g-sats"></i></span></div>
+              <div class="readout"><span class="ro-label mono">MODE</span><span class="ro-value" id="ro-mode">-</span></div>
+              <div class="readout"><span class="ro-label mono">LOST (SEQ)</span><span class="ro-value" id="ro-lost">0</span></div>
+            </div>
+            <ul class="flags mono" id="flags" aria-label="Status flags">
+              <li data-flag="ARMED">ARMED</li><li data-flag="GPS_LOCK">GPS_LOCK</li><li data-flag="LOW_BATTERY">LOW_BATT</li><li data-flag="RETURNING">RETURNING</li><li data-flag="FAILSAFE">FAILSAFE</li>
+            </ul>
+            <p class="spoof mono" id="spoof-banner" hidden></p>
+            <div class="chart">
+              <canvas id="chart" aria-label="Altitude and battery over the last 60 seconds" role="img"></canvas>
+              <div class="chart-legend mono" aria-hidden="true"><span><i class="lg lg-ok"></i>altitude m</span><span><i class="lg lg-dash"></i>battery %</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- C. Inspector -->
+        <div class="panel inspector" aria-labelledby="insp-title" data-reveal>
+          <div class="panel-head">
+            <h3 class="panel-title" id="insp-title"><span class="tag mono">C</span> Frame inspector</h3>
+            <div class="insp-tools">
+              <button class="btn btn-small" id="insp-prev" type="button" aria-label="Previous frame">←</button>
+              <button class="btn btn-small" id="insp-next" type="button" aria-label="Next frame">→</button>
+              <button class="btn btn-small" id="insp-follow" type="button" aria-pressed="true">Follow live</button>
+              <button class="btn btn-small" id="insp-copy" type="button">Copy hex</button>
+            </div>
+          </div>
+          <p class="insp-meta mono" id="insp-meta" aria-live="off">waiting for the first frame</p>
+          <div class="cells" id="insp-cells"></div>
+          <div class="group-legend mono" aria-hidden="true">
+            <span class="gl gl-header">header</span><span class="gl gl-payload">payload</span><span class="gl gl-checksum">checksum</span><span class="gl gl-signature">signature</span>
+          </div>
+        </div>
+
+        <div class="demo-row">
+          <!-- D. Pipeline -->
+          <div class="panel pipeline" aria-labelledby="pipe-title" data-reveal>
+            <h3 class="panel-title" id="pipe-title"><span class="tag mono">D</span> Receiver pipeline</h3>
+            <ol class="steps" id="pipeline"></ol>
+            <p class="pipe-verdict mono" id="pipe-verdict"></p>
+          </div>
+          <!-- F. Log -->
+          <div class="panel log" aria-labelledby="log-title" data-reveal="80">
+            <div class="panel-head">
+              <h3 class="panel-title" id="log-title"><span class="tag mono">F</span> Event log</h3>
+              <label class="check mono"><input type="checkbox" id="log-verbose"> verbose</label>
+            </div>
+            <ol class="log-list mono" id="log" role="log" aria-live="off" aria-label="Event log"></ol>
+            <div class="sr-only" id="announcer" aria-live="polite" aria-atomic="true"></div>
+          </div>
+        </div>
+        <figcaption><span class="fig-no">Fig. 2</span> One simulated link. Upper lane: drone to ground. Lower lane: ground to drone. Frames are real <code>Uint8Array</code>s built and checked by <code>protocol.js</code>.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ============================================================ RED TEAM -->
+    <section class="section" id="redteam" aria-labelledby="rt-title">
+      <header class="section-head" data-reveal>
+        <div class="sh-rule mono" aria-hidden="true"><span>§02</span><i></i><span>RED TEAM · SIMULATED</span></div>
+        <div class="sh-body">
+          <span class="sh-no mono" aria-hidden="true">02</span>
+          <div>
+            <h2 id="rt-title">Break the link. <em>Watch it hold.</em></h2>
+            <p>The attacker can hear the link, record frames and inject its own. It knows the format and the CRC, but not the key. Launch an attack and follow the frame through the receiver, then switch a defence off and try again. Every attack touches only the simulated link on this page.</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="rt-top">
+        <div class="panel rt-controls" aria-labelledby="atk-title" data-reveal>
+          <h3 class="panel-title" id="atk-title"><span class="tag mono">G</span> Attacks</h3>
+          <div class="attacks">
+            <button class="attack" type="button" data-attack="noise"><span class="atk-no mono">01</span><span class="atk-name">Inject noise</span><span class="atk-desc">Flip one bit of the next telemetry frame.</span><span class="atk-code mono">expect R5 · checksum</span></button>
+            <button class="attack" type="button" data-attack="forge"><span class="atk-no mono">02</span><span class="atk-name">Forge a frame</span><span class="atk-desc">Valid CRC, battery 8%, signed with a guessed key.</span><span class="atk-code mono">expect R6 · signature</span></button>
+            <button class="attack" type="button" data-attack="tamper"><span class="atk-no mono">03</span><span class="atk-name">Tamper</span><span class="atk-desc">Add 300 m to altitude in flight, recompute the CRC.</span><span class="atk-code mono">expect R6 · signature</span></button>
+            <button class="attack" type="button" data-attack="replay"><span class="atk-no mono">04</span><span class="atk-name">Replay</span><span class="atk-desc">Re-send a genuine frame recorded earlier.</span><span class="atk-code mono">expect R7 · timestamp</span></button>
+          </div>
+          <div class="defences" role="group" aria-label="Defences">
+            <p class="def-title mono">defences</p>
+            <label class="switch"><input type="checkbox" role="switch" id="def-sig" checked><span class="sw" aria-hidden="true"></span><span>Require signature <span class="mono muted">R2 · R6</span></span></label>
+            <label class="switch"><input type="checkbox" role="switch" id="def-ts" checked><span class="sw" aria-hidden="true"></span><span>Check timestamp <span class="mono muted">R7</span></span></label>
+          </div>
+        </div>
+
+        <div class="panel rt-live" aria-labelledby="rtlive-title" data-reveal="80">
+          <div class="panel-head">
+            <h3 class="panel-title" id="rtlive-title"><span class="tag mono">H</span> Live view</h3>
+            <span class="mono muted rt-hint">the drone shows its true state · the ground station shows what it believes</span>
+          </div>
+          <div class="stage rt-stage" id="rt-slot">
+            <span class="stage-tag tl mono" aria-hidden="true">LIVE · TRUE STATE</span>
+          </div>
+          <canvas id="rt-link" class="link-canvas link-canvas-sm" aria-label="Frames on the link, including attacker frames."></canvas>
+          <div class="believes mono" aria-live="off">
+            <span class="bl-label">ground station believes</span>
+            <span>ALT <b id="rt-alt">-</b></span><span>BATT <b id="rt-batt">-</b></span><span>MODE <b id="rt-mode">-</b></span><span id="rt-flags" class="bl-flags"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel rt-pipe" aria-labelledby="hp-title" data-reveal>
+        <div class="panel-head">
+          <h3 class="panel-title" id="hp-title"><span class="tag mono">I</span> Attack frame through the receiver</h3>
+          <span class="mono muted" id="hp-frame">no attack yet</span>
+        </div>
+        <div class="hpipe-scroll">
+          <div class="hpipe" id="hpipe">
+            <span class="hp-token mono" id="hp-token" aria-hidden="true">ATK</span>
+            <ol class="hp-steps" id="hp-steps"></ol>
+          </div>
+        </div>
+        <div class="rt-bottom">
+          <div id="atk-out" class="atk-out" aria-live="polite">
+            <p class="big muted">Pick an attack.</p>
+            <p class="muted">The frame will travel through R1 to R7. Watch where it stops.</p>
+          </div>
+          <div>
+            <table class="layer-table">
+              <caption class="mono">which layer stops it</caption>
+              <thead><tr><th scope="col">Attack</th><th scope="col">Stopped by</th><th scope="col">Now</th></tr></thead>
+              <tbody id="layer-body"></tbody>
+            </table>
+            <p class="note">A forged <code>LOW_BATTERY</code> is enough to make the ground station order the drone home. Turn off <em>Require signature</em> and try it.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ FRAME BUILD -->
+    <section class="section" id="build" aria-labelledby="build-title">
+      <header class="section-head" data-reveal>
+        <div class="sh-rule mono" aria-hidden="true"><span>§03</span><i></i><span>WORKED EXAMPLE 10.3 · 38 BYTES</span></div>
+        <div class="sh-body">
+          <span class="sh-no mono" aria-hidden="true">03</span>
+          <div>
+            <h2 id="build-title">How a frame is built, <em>byte by byte.</em></h2>
+            <p>A signed <code>DRONE_TELEMETRY</code> frame from the specification: header, payload, checksum with <code>CRC_EXTRA</code>, then the signature block. Step through it or press play.</p>
+          </div>
+        </div>
+      </header>
+      <div class="panel build" data-reveal>
+        <div class="build-nav" role="group" aria-label="Frame build steps">
+          <button class="btn btn-small" id="build-prev" type="button" aria-label="Previous step">←</button>
+          <ol class="build-steps mono" id="build-steps"></ol>
+          <button class="btn btn-small" id="build-next" type="button" aria-label="Next step">→</button>
+          <button class="btn btn-small" id="build-play" type="button" aria-pressed="false">Play</button>
+        </div>
+        <div class="build-progress" aria-hidden="true"><i id="build-progress"></i></div>
+        <div class="build-bytes" id="build-bytes" aria-hidden="true"></div>
+        <div class="build-detail">
+          <div class="build-diagram" id="build-diagram"></div>
+          <div class="build-text">
+            <p class="fig-no" id="build-fig"></p>
+            <p class="build-caption" id="build-caption" aria-live="polite"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ CONFORMANCE -->
+    <section class="section" id="conformance" aria-labelledby="conf-title">
+      <header class="section-head" data-reveal>
+        <div class="sh-rule mono" aria-hidden="true"><span>§04</span><i></i><span>SPECIFICATION §11 · RUN ON LOAD</span></div>
+        <div class="sh-body">
+          <span class="sh-no mono" aria-hidden="true">04</span>
+          <div>
+            <h2 id="conf-title">Verified in your browser.</h2>
+            <p>The conformance vectors of the specification, plus SHA-256 and HMAC reference vectors, run against the same code that drives the demo. Nothing here is precomputed.</p>
+          </div>
+        </div>
+      </header>
+      <div class="panel conf" data-reveal>
+        <div class="conf-head">
+          <p class="conf-score" id="conf-score" aria-hidden="true"></p>
+          <p class="conf-summary mono" id="conf-summary">running…</p>
+        </div>
+        <div class="table-scroll">
+          <table class="conf-table">
+            <thead><tr><th scope="col">#</th><th scope="col">Test</th><th scope="col">Expected</th><th scope="col">Got</th><th scope="col">Result</th></tr></thead>
+            <tbody id="conf-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer" data-reveal>
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a class="brand" href="#top" aria-label="Drone Link Lab, back to top">
+            <svg class="logo logo-lg" viewBox="0 0 40 40" aria-hidden="true"><circle cx="9.5" cy="9.5" r="5.5"/><circle cx="30.5" cy="9.5" r="5.5"/><circle cx="30.5" cy="30.5" r="5.5"/><circle cx="9.5" cy="30.5" r="5.5"/><path d="M13.4 13.4 L16 16 M26.6 13.4 L24 16 M26.6 26.6 L24 24 M13.4 26.6 L16 24"/><rect class="logo-frame" x="16" y="16" width="8" height="8"/><rect class="logo-core" x="18.4" y="18.4" width="3.2" height="3.2"/></svg>
+            <span class="wordmark">Drone Link<span class="wm-lab">LAB</span></span>
+          </a>
+          <p class="footer-tag">A signed telemetry link you can take apart, byte by byte.</p>
+          <p class="footer-note"><span class="mono">NOTE</span> Simulation only. No real aircraft or radio hardware is involved.</p>
+        </div>
+        <nav class="footer-cols" aria-label="Footer">
+          <div>
+            <p class="col-title mono">project</p>
+            <ul>
+              <li><a href="https://github.com/viktor-in-the-wire/drone-link-lab">Repository</a></li>
+              <li><a href="https://github.com/viktor-in-the-wire/drone-link-lab/blob/main/docs/PROTOCOL.md">Specification</a></li>
+              <li><a href="https://github.com/viktor-in-the-wire/drone-link-lab/blob/main/LICENSE">MIT licence</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="col-title mono">mavlink</p>
+            <ul>
+              <li><a href="https://mavlink.io/en/guide/serialization.html">Serialization</a></li>
+              <li><a href="https://mavlink.io/en/guide/message_signing.html">Message signing</a></li>
+              <li><a href="https://mavlink.io/en/messages/common.html">Common messages</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="col-title mono">standards</p>
+            <ul>
+              <li><a href="https://www.rfc-editor.org/rfc/rfc2104">RFC 2104 · HMAC</a></li>
+              <li><a href="https://www.rfc-editor.org/rfc/rfc6234">RFC 6234 · SHA-256</a></li>
+              <li><a href="https://www.rfc-editor.org/rfc/rfc768">RFC 768 · UDP</a></li>
+            </ul>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Engineering-drawing title block -->
+      <dl class="title-block mono">
+        <div class="tb-wide"><dt>title</dt><dd>Drone Link Lab · interactive specification</dd></div>
+        <div class="tb-author"><dt>author / creator</dt><dd>Viktor Grozdev</dd></div>
+        <div><dt>protocol</dt><dd>DLP 1.0 (draft)</dd></div>
+        <div><dt>date</dt><dd>2026-11-16</dd></div>
+        <div><dt>licence</dt><dd>MIT</dd></div>
+        <div><dt>sheet</dt><dd>1 / 1</dd></div>
+      </dl>
+
+      <div class="footer-bottom mono">
+        <span>© 2026 Viktor Grozdev</span>
+        <span>no cookies · no analytics · set in IBM Plex · 3D by three.js r160</span>
+        <a href="#top">back to top ↑</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
