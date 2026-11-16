@@ -1,0 +1,37 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 780 440' width='780' height='440' role='img' aria-labelledby='t d'>
+<title id='t'>Signature computation</title><desc id='d'>A frame, link id and timestamp are concatenated and passed to HMAC-SHA256 with a 32 byte key; the first 6 bytes of the tag become the signature.</desc>
+<rect width='780' height='440' fill='#ffffff'/>
+<defs><marker id='arr' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0 0 L10 5 L0 10 z' fill='#4b5563'/></marker></defs>
+<text x='40' y='34' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='18' font-weight='bold' fill='#111827' text-anchor='start' >Signature computation</text>
+<text x='40' y='54' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='12' font-weight='normal' fill='#4b5563' text-anchor='start' >signature = first 6 bytes of HMAC-SHA256(key, FRAME || LINK_ID || TIMESTAMP)</text>
+<rect x='40' y='90' width='200' height='60' rx='4' fill='#dbeafe' stroke='#1d4ed8' stroke-width='1.5'/>
+<text x='140.0' y='117.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='bold' fill='#111827' text-anchor='middle' >FRAME</text>
+<text x='140.0' y='134.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='11' font-weight='normal' fill='#4b5563' text-anchor='middle' >STX ... CHECKSUM</text>
+<text x='250' y='126' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='18' font-weight='bold' fill='#111827' text-anchor='middle' >||</text>
+<rect x='262' y='90' width='90' height='60' rx='4' fill='#ede9fe' stroke='#6d28d9' stroke-width='1.5'/>
+<text x='307.0' y='117.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='bold' fill='#111827' text-anchor='middle' >LINK_ID</text>
+<text x='307.0' y='134.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='11' font-weight='normal' fill='#4b5563' text-anchor='middle' >1 byte</text>
+<text x='362' y='126' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='18' font-weight='bold' fill='#111827' text-anchor='middle' >||</text>
+<rect x='374' y='90' width='110' height='60' rx='4' fill='#ede9fe' stroke='#6d28d9' stroke-width='1.5'/>
+<text x='429.0' y='117.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='bold' fill='#111827' text-anchor='middle' >TIMESTAMP</text>
+<text x='429.0' y='134.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='11' font-weight='normal' fill='#4b5563' text-anchor='middle' >6 bytes</text>
+<path d='M140 150 V176' stroke='#4b5563' stroke-width='1.5' fill='none'/>
+<path d='M307 150 V176' stroke='#4b5563' stroke-width='1.5' fill='none'/>
+<path d='M429 150 V176' stroke='#4b5563' stroke-width='1.5' fill='none'/>
+<path d='M140 176 H429' stroke='#4b5563' stroke-width='1.5' fill='none'/>
+<path d='M310 176 V198' stroke='#4b5563' stroke-width='1.5' fill='none' marker-end='url(#arr)'/>
+<rect x='220' y='200' width='180' height='54' rx='4' fill='#f3f4f6' stroke='#6b7280' stroke-width='1.5'/>
+<text x='310.0' y='232.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='bold' fill='#111827' text-anchor='middle' >HMAC-SHA256</text>
+<rect x='560' y='200' width='160' height='54' rx='4' fill='#fee2e2' stroke='#b91c1c' stroke-width='1.5'/>
+<text x='640.0' y='224.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='bold' fill='#111827' text-anchor='middle' >SECRET KEY</text>
+<text x='640.0' y='241.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='11' font-weight='normal' fill='#4b5563' text-anchor='middle' >32 bytes, shared</text>
+<path d='M560 227 H400' stroke='#b91c1c' stroke-width='1.5' fill='none' marker-end='url(#arr)'/>
+<path d='M310 254 V288' stroke='#4b5563' stroke-width='1.5' fill='none' marker-end='url(#arr)'/>
+<rect x='210' y='288' width='200' height='50' rx='4' fill='#f3f4f6' stroke='#6b7280' stroke-width='1.5'/>
+<text x='310.0' y='318.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='bold' fill='#111827' text-anchor='middle' >32-byte tag</text>
+<path d='M410 313 H470' stroke='#4b5563' stroke-width='1.5' fill='none' marker-end='url(#arr)'/>
+<rect x='470' y='288' width='200' height='50' rx='4' fill='#ede9fe' stroke='#6d28d9' stroke-width='1.5'/>
+<text x='570.0' y='310.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='bold' fill='#111827' text-anchor='middle' >SIGNATURE</text>
+<text x='570.0' y='327.0' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='11' font-weight='normal' fill='#4b5563' text-anchor='middle' >first 6 bytes of the tag</text>
+<text x='40' y='380' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='12' font-weight='normal' fill='#4b5563' text-anchor='start' >The receiver repeats the calculation, compares with hmac.compare_digest, and only then updates its timestamp state.</text>
+</svg>
